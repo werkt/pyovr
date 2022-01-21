@@ -1,3 +1,4 @@
+import glfw
 import pyglfw.pyglfw as glfw
 
 def main():

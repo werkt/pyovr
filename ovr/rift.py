@@ -23,6 +23,10 @@ class Rift():
       return ovr.matrix4f_Projection(fov, near, far, projectionFlags)
 
     @staticmethod
+    def get_timewarp_projection_desc(projection, projectionFlags=ovr.Projection_None):
+      return ovr.timewarpProjectionDesc_FromProjection(projection, projectionFlags)
+
+    @staticmethod
     def initialize(params=None):
       return ovr.initialize(params)
 
@@ -44,6 +48,18 @@ class Rift():
 
     def commit_texture_swap_chain(self, textureSwapChain):
       ovr.commitTextureSwapChain(self.session, textureSwapChain)
+
+    def create_mirror_texture(self, size, format_ = ovr.OVR_FORMAT_R8G8B8A8_UNORM_SRGB):
+      mirrorTextureDesc = ovr.MirrorTextureDesc()
+      mirrorTextureDesc.Format = format_
+      mirrorTextureDesc.Width = size.w
+      mirrorTextureDesc.Height = size.h
+      mirrorTextureDesc.MiscFlags = ctypes.c_uint(0)
+      mirrorTextureDesc.MirrorOptions = ctypes.c_uint(0)
+      # print self.session
+      # print mirrorTextureDesc
+      result = ovr.createMirrorTextureGL(self.session, mirrorTextureDesc)
+      return result
 
     def create_swap_texture(self, size, format_ = ovr.OVR_FORMAT_R8G8B8A8_UNORM_SRGB):
       textureSwapChainDesc = ovr.TextureSwapChainDesc()
@@ -68,7 +84,6 @@ class Rift():
       self.session = None
       self.luid = None
       self.hmdDesc = None
-      self.session = None
 
     def destroy_swap_texture(self, textureSwapChain):
       return ovr.destroyTextureSwapChain(self.session, textureSwapChain)
@@ -97,6 +112,9 @@ class Rift():
     def get_render_desc(self, eye, fov):
       return ovr.getRenderDesc(self.session, eye, fov)
 
+    def get_render_desc_pre117(self, eye, fov):
+      return ovr.getRenderDescPre117(self.session, eye, fov)
+
     def get_resolution(self):
       return self.hmdDesc.Resolution
 
@@ -107,8 +125,11 @@ class Rift():
       self.session, self.luid = ovr.create()
       self.hmdDesc = ovr.getHmdDesc(self.session)
 
-    def submit_frame(self, frameIndex, viewScaleDesc, layerPtrList, layerCount):
-      return ovr.submitFrame(self.session, frameIndex, viewScaleDesc, layerPtrList, layerCount)
+    def submit_frame(self, frameIndex, viewScaleDesc, layerPtrList):
+      return ovr.submitFrame(self.session, frameIndex, viewScaleDesc, layerPtrList)
+
+    def submit_frame_pre117(self, frameIndex, viewScaleDesc, layerPtrList):
+      return ovr.submitFramePre117(self.session, frameIndex, viewScaleDesc, layerPtrList)
 
     def recenter_pose(self):
       return ovr.recenterTrackingOrigin(self.session)

@@ -1,6 +1,6 @@
 """
 Python module "ovr"
-Python bindings for Oculus Rift SDK version 1.16.0
+Python bindings for Oculus Rift SDK version 1.69.0
 
 Works on Windows only at the moment (just like Oculus Rift SDK...)
 """
@@ -9,12 +9,16 @@ import ctypes
 from ctypes import * #@UnusedWildImport
 import math
 import platform
+import os
 
 
 OVR_PTR_SIZE = sizeof(c_voidp) # distinguish 32 vs 64 bit python
 
 # Load Oculus runtime library (only tested on Windows)
 # 1) Figure out name of library to load
+
+OVR_PATH = os.path.join(os.getenv("OculusBase"), "Support", "oculus-runtime")
+os.add_dll_directory(OVR_PATH)
 
 _libname = "OVRRT32_1" # 32-bit python
 if OVR_PTR_SIZE == 8:
@@ -25,12 +29,14 @@ if platform.system().startswith("Win"):
 try:
     libovr = CDLL(_libname)
 except:
-    print("Is Oculus Runtime 1.16 installed on this machine?")
+    print("Is Oculus Runtime 1.69 installed on this machine?")
     raise
 
 
 ENUM_TYPE = c_int32 # Hopefully a close enough guess...
 
+OVR_ON64_FIELD = lambda field : [field] if OVR_PTR_SIZE == 8 else []
+# OVR_ON32 is unused
 
 class HmdStruct(Structure):
     "Used as an opaque pointer to an OVR session."
@@ -103,7 +109,7 @@ def _checkResult(ovrResult, functionName):
         functionName, ovrResult)
     try:
         errorInfo = getLastErrorInfo()
-        msg += " %s (%d)" % (errorInfo.ErrorString, errorInfo.Result)
+        msg += " %s (%d)" % (errorInfo.ErrorString.decode("utf-8"), errorInfo.Result)
     except:
         msg += " And, annoyingly, getLastErrorInfo() failed too."
     raise OculusFunctionError(msg)
@@ -120,7 +126,7 @@ MAJOR_VERSION = 1 # If you change these values then you need to also make sure t
 
 
 # Translated from header file OVR_Version.h line 20
-MINOR_VERSION = 16 #
+MINOR_VERSION = 69 #
 
 
 # Translated from header file OVR_Version.h line 21
@@ -832,47 +838,27 @@ class GraphicsLuid(Structure):
 
 # Translated from header file OVR_CAPI.h line 423
 class HmdDesc(Structure):
-    HMD_DESC_FIELDS_64 = [
-        ("Type", HmdType),  #< The type of HMD.
-        ("pad0", c_char * 4),  #< \internal struct paddding.
-        ("ProductName", c_char * 64),  #< UTF8-encoded product identification string (e.g. "Oculus Rift DK1").
-        ("Manufacturer", c_char * 64),  #< UTF8-encoded HMD manufacturer identification string.
-        ("VendorId", c_short),  #< HID (USB) vendor identifier of the device.
-        ("ProductId", c_short),  #< HID (USB) product identifier of the device.
-        ("SerialNumber", c_char * 24),  #< HMD serial number.
-        ("FirmwareMajor", c_short),  #< HMD firmware major version.
-        ("FirmwareMinor", c_short),  #< HMD firmware minor version.
-        ("AvailableHmdCaps", c_uint),  #< Available ovrHmdCaps bits.
-        ("DefaultHmdCaps", c_uint),  #< Default ovrHmdCaps bits.
-        ("AvailableTrackingCaps", c_uint),  #< Available ovrTrackingCaps bits.
-        ("DefaultTrackingCaps", c_uint),  #< Default ovrTrackingCaps bits.
-        ("DefaultEyeFov", FovPort * Eye_Count),  #< Defines the recommended FOVs for the HMD.
-        ("MaxEyeFov", FovPort * Eye_Count),  #< Defines the maximum FOVs for the HMD.
-        ("Resolution", Sizei),  #< Resolution of the full HMD screen (both eyes) in pixels.
-        ("DisplayRefreshRate", c_float),  #< Refresh rate of the display in cycles per second.
-        ("pad1", c_char * 4),  #< \internal struct paddding.
-    ]
-    HMD_DESC_FIELDS_32 = [
-        ("Type", HmdType),  #< The type of HMD.
-        ("ProductName", c_char * 64),  #< UTF8-encoded product identification string (e.g. "Oculus Rift DK1").
-        ("Manufacturer", c_char * 64),  #< UTF8-encoded HMD manufacturer identification string.
-        ("VendorId", c_short),  #< HID (USB) vendor identifier of the device.
-        ("ProductId", c_short),  #< HID (USB) product identifier of the device.
-        ("SerialNumber", c_char * 24),  #< HMD serial number.
-        ("FirmwareMajor", c_short),  #< HMD firmware major version.
-        ("FirmwareMinor", c_short),  #< HMD firmware minor version.
-        ("AvailableHmdCaps", c_uint),  #< Available ovrHmdCaps bits.
-        ("DefaultHmdCaps", c_uint),  #< Default ovrHmdCaps bits.
-        ("AvailableTrackingCaps", c_uint),  #< Available ovrTrackingCaps bits.
-        ("DefaultTrackingCaps", c_uint),  #< Default ovrTrackingCaps bits.
-        ("DefaultEyeFov", FovPort * Eye_Count),  #< Defines the recommended FOVs for the HMD.
-        ("MaxEyeFov", FovPort * Eye_Count),  #< Defines the maximum FOVs for the HMD.
-        ("Resolution", Sizei),  #< Resolution of the full HMD screen (both eyes) in pixels.
-        ("DisplayRefreshRate", c_float),  #< Refresh rate of the display in cycles per second.
-    ]
     "This is a complete descriptor of the HMD."
     _pack_ = OVR_PTR_SIZE
-    _fields_ = HMD_DESC_FIELDS_64 if OVR_PTR_SIZE == 8 else HMD_DESC_FIELDS_32
+    _fields_ = [
+        ("Type", HmdType),  #< The type of HMD.
+    ] + OVR_ON64_FIELD(("pad0", c_char * 4)) + [ #< \internal struct paddding.
+        ("ProductName", c_char * 64),  #< UTF8-encoded product identification string (e.g. "Oculus Rift DK1").
+        ("Manufacturer", c_char * 64),  #< UTF8-encoded HMD manufacturer identification string.
+        ("VendorId", c_short),  #< HID (USB) vendor identifier of the device.
+        ("ProductId", c_short),  #< HID (USB) product identifier of the device.
+        ("SerialNumber", c_char * 24),  #< HMD serial number.
+        ("FirmwareMajor", c_short),  #< HMD firmware major version.
+        ("FirmwareMinor", c_short),  #< HMD firmware minor version.
+        ("AvailableHmdCaps", c_uint),  #< Available ovrHmdCaps bits.
+        ("DefaultHmdCaps", c_uint),  #< Default ovrHmdCaps bits.
+        ("AvailableTrackingCaps", c_uint),  #< Available ovrTrackingCaps bits.
+        ("DefaultTrackingCaps", c_uint),  #< Default ovrTrackingCaps bits.
+        ("DefaultEyeFov", FovPort * Eye_Count),  #< Defines the recommended FOVs for the HMD.
+        ("MaxEyeFov", FovPort * Eye_Count),  #< Defines the maximum FOVs for the HMD.
+        ("Resolution", Sizei),  #< Resolution of the full HMD screen (both eyes) in pixels.
+        ("DisplayRefreshRate", c_float),  #< Refresh rate of the display in cycles per second.
+    ] + OVR_ON64_FIELD(("pad1", c_char * 4))  #< \internal struct paddding.
 
     def __repr__(self):
         return "ovr.HmdDesc(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)" % (self.Type, self.ProductName, self.Manufacturer, self.VendorId, self.ProductId, self.SerialNumber, self.FirmwareMajor, self.FirmwareMinor, self.AvailableHmdCaps, self.DefaultHmdCaps, self.AvailableTrackingCaps, self.DefaultTrackingCaps, self.DefaultEyeFov, self.MaxEyeFov, self.Resolution, self.DisplayRefreshRate)
@@ -999,11 +985,11 @@ class EyeRenderDesc(Structure):
         ("Fov", FovPort),  #< The field of view.
         ("DistortedViewport", Recti),  #< Distortion viewport.
         ("PixelsPerTanAngleAtCenter", Vector2f),  #< How many display pixels will fit in tan(angle) = 1.
-        ("HmdToEyeOffset", Vector3f),  #< Translation of each eye, in meters.
+        ("HmdToEyePose", Posef),  #< Translation of each eye, in meters.
     ]
 
     def __repr__(self):
-        return "ovr.EyeRenderDesc(%s, %s, %s, %s, %s)" % (self.Eye, self.Fov, self.DistortedViewport, self.PixelsPerTanAngleAtCenter, self.HmdToEyeOffset)
+        return "ovr.EyeRenderDesc(%s, %s, %s, %s, %s)" % (self.Eye, self.Fov, self.DistortedViewport, self.PixelsPerTanAngleAtCenter, self.HmdToEyePose)
 
 
 # Translated from header file OVR_CAPI.h line 564
@@ -1044,7 +1030,7 @@ class ViewScaleDesc(Structure):
     """
     _pack_ = 4
     _fields_ = [
-        ("HmdToEyeOffset", Vector3f * Eye_Count),  #< Translation of each eye.
+        ("HmdToEyePose", Posef * Eye_Count),  #< Translation of each eye.
         ("HmdSpaceToWorldScaleInMeters", c_float),  #< Ratio of viewer units to meter units.
     ]
 
@@ -1604,6 +1590,9 @@ Init_Invisible = 0x00000010
 # This client will alternate between VR and 2D rendering.
 # Typically set by game engine editors and VR-enabled web browsers.
 Init_MixedRendering = 0x00000020
+# This client is aware of ovrSessionStatus focus states (e.g. ovrSessionStatus::HasInputFocus),
+# and responds to them appropriately (e.g. pauses and stops drawing hands when lacking focus).
+Init_FocusAware = 0x00000040
 # These bits are writable by user code.
 Init_WritableBits = 0x00ffffff
 
@@ -1647,12 +1636,10 @@ class InitParams(Structure):
         # Relative number of milliseconds to wait for a connection to the server
         # before failing. Use 0 for the default timeout.
         ("ConnectionTimeoutMS", c_uint32), 
-        # skipping 64-bit only padding... # ("pad0", c_char * 4)),  #< \internal
-    ]
+    ] + OVR_ON64_FIELD(("pad0", c_char * 4))  #< \internal
 
     def __repr__(self):
         return "ovr.InitParams(%s, %s, %s, %s, %s)" % (self.Flags, self.RequestedMinorVersion, self.LogCallback, self.UserData, self.ConnectionTimeoutMS)
-
 
 # Translated from header file OVR_CAPI.h line 1231
 libovr.ovr_Initialize.restype = Result
@@ -2591,6 +2578,7 @@ class LayerHeader(Structure):
     _fields_ = [
         ("Type", LayerType),  #< Described by ovrLayerType.
         ("Flags", c_uint),  #< Described by ovrLayerFlags.
+        ("Reserved", c_char * 128),
     ]
 
     def __repr__(self):
@@ -2641,7 +2629,6 @@ class LayerEyeFov(Structure):
     def __repr__(self):
         return "ovr.LayerEyeFov(%s, %s, %s, %s, %s, %s)" % (self.Header, self.ColorTexture, self.Viewport, self.Fov, self.RenderPose, self.SensorSampleTime)
 
-
 class LayerEyeFovDepth(Structure):
     """
     Describes a layer that specifies a monoscopic or stereoscopic view,
@@ -2691,8 +2678,6 @@ class LayerEyeFovDepth(Structure):
         ("ProjectionDesc", TimewarpProjectionDesc),
     ]
 
-    def __repr__(self):
-        return "ovr.LayerEyeFovDepth(%s, %s, %s, %s, %s, %s)" % (self.Header, self.ColorTexture, self.Viewport, self.Fov, self.RenderPose, self.SensorSampleTime, self.DepthTexture, self.ProjectionDesc)
 
 # Translated from header file OVR_CAPI.h line 2014
 class LayerEyeMatrix(Structure):
@@ -2960,8 +2945,8 @@ def getFovTextureSize(session, eye, fov, pixelsPerDisplayPixel):
 
 
 # Translated from header file OVR_CAPI.h line 2251
-libovr.ovr_GetRenderDesc.restype = EyeRenderDesc
-libovr.ovr_GetRenderDesc.argtypes = [Session, EyeType, FovPort]
+libovr.ovr_GetRenderDesc2.restype = EyeRenderDesc
+libovr.ovr_GetRenderDesc2.argtypes = [Session, EyeType, FovPort]
 def getRenderDesc(session, eyeType, fov):
     """
     Computes the distortion viewport, view adjust, and other rendering parameters for
@@ -2975,14 +2960,14 @@ def getRenderDesc(session, eyeType, fov):
     
     \see ovrEyeRenderDesc
     """
-    result = libovr.ovr_GetRenderDesc(session, eyeType, fov)
+    result = libovr.ovr_GetRenderDesc2(session, eyeType, fov)
     return result
 
 
 # Translated from header file OVR_CAPI.h line 2265
-libovr.ovr_SubmitFrame.restype = Result
-libovr.ovr_SubmitFrame.argtypes = [Session, c_longlong, POINTER(ViewScaleDesc), POINTER(POINTER(LayerHeader)), c_uint]
-def submitFrame(session, frameIndex, viewScaleDesc, layerPtrList, layerCount):
+libovr.ovr_SubmitFrame2.restype = Result
+libovr.ovr_SubmitFrame2.argtypes = [Session, c_longlong, POINTER(ViewScaleDesc), POINTER(POINTER(LayerHeader)), c_uint]
+def submitFrame(session, frameIndex, viewScaleDesc, layerPtrList):
     """
     Submits layers for distortion and display.
     
@@ -3058,8 +3043,9 @@ def submitFrame(session, frameIndex, viewScaleDesc, layerPtrList, layerCount):
     
     \see ovr_GetPredictedDisplayTime, ovrViewScaleDesc, ovrLayerHeader, ovr_GetSessionStatus
     """
-    layerPtrList = (POINTER(LayerHeader) * len(layerPtrList))(*[ctypes.pointer(i) for i in layerPtrList])
-    result = libovr.ovr_SubmitFrame(session, frameIndex, byref(viewScaleDesc), byref(layerPtrList), layerCount)
+    layerCount = len(layerPtrList)
+    layerPtrList = (POINTER(LayerHeader) * layerCount)(*[ctypes.pointer(i) for i in layerPtrList])
+    result = libovr.ovr_SubmitFrame2(session, frameIndex, byref(viewScaleDesc), byref(layerPtrList), layerCount)
     _checkResult(result, "submitFrame")
     return result
 
