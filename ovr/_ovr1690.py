@@ -2168,7 +2168,7 @@ def getTrackingState(session, absTime, latencyMarker):
 # Translated from header file OVR_CAPI.h line 1632
 libovr.ovr_GetDevicePoses.restype = Result
 libovr.ovr_GetDevicePoses.argtypes = [Session, POINTER(TrackedDeviceType), c_int, c_double, POINTER(PoseStatef)]
-def getDevicePoses(session, deviceTypes, deviceCount, absTime):
+def getDevicePoses(session, deviceTypes, absTime):
     """
     Returns an array of poses, where each pose matches a device type provided by the deviceTypes
     array parameter.
@@ -2184,7 +2184,9 @@ def getDevicePoses(session, deviceTypes, deviceCount, absTime):
     \return Returns an ovrResult for which OVR_SUCCESS(result) is false upon error and
             true upon success.
     """
-    outDevicePoses = PoseStatef()
+    deviceCount = len(deviceTypes)
+    outDevicePoses = (PoseStatef * deviceCount)()
+    deviceTypes = (TrackedDeviceType * deviceCount)(*[deviceType for deviceType in deviceTypes])
     result = libovr.ovr_GetDevicePoses(session, byref(deviceTypes), deviceCount, absTime, byref(outDevicePoses))
     if result == Error_LostTracking:
         return None
@@ -3920,7 +3922,7 @@ def matrix4f_OrthoSubProjection(projection, orthoScale, orthoDistance, HmdToEyeO
 # Translated from header file OVR_CAPI_Util.h line 168
 libovr.ovr_CalcEyePoses.restype = None
 libovr.ovr_CalcEyePoses.argtypes = [Posef, Vector3f * 2, Posef * 2]
-def calcEyePoses(headPose, hmdToEyeOffset, outEyePoses):
+def calcEyePoses(headPose, hmdToEyeOffset):
     """
     Computes offset eye poses based on headPose returned by ovrTrackingState.
     
@@ -3931,7 +3933,9 @@ def calcEyePoses(headPose, hmdToEyeOffset, outEyePoses):
     \param[out] outEyePoses If outEyePoses are used for rendering, they should be passed to
                 ovr_SubmitFrame in ovrLayerEyeFov::RenderPose or ovrLayerEyeFovDepth::RenderPose.
     """
+    outEyePoses = (Posef * Eye_Count)()
     libovr.ovr_CalcEyePoses(headPose, hmdToEyeOffset, outEyePoses)
+    return outEyePoses
 
 
 # Translated from header file OVR_CAPI_Util.h line 180
