@@ -17,8 +17,9 @@ OVR_PTR_SIZE = sizeof(c_voidp) # distinguish 32 vs 64 bit python
 # Load Oculus runtime library (only tested on Windows)
 # 1) Figure out name of library to load
 
-OVR_PATH = os.path.join(os.getenv("OculusBase"), "Support", "oculus-runtime")
-os.add_dll_directory(OVR_PATH)
+if hasattr(os, 'add_dll_directory'):
+    OVR_PATH = os.path.join(os.getenv("OculusBase"), "Support", "oculus-runtime")
+    os.add_dll_directory(OVR_PATH)
 
 _libname = "OVRRT32_1" # 32-bit python
 if OVR_PTR_SIZE == 8:
