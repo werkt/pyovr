@@ -338,6 +338,8 @@ Error_InvalidOperation = -1015
 Error_InsufficientArraySize = -1016
 # There is not any external camera information stored by ovrServer.
 Error_NoExternalCameraInfo = -1017
+# Tracking is lost when ovr_GetDevicePoses() is called.
+Error_LostTracking = -1018
 #***********************************************#
 # Audio error range, reserved for Audio errors. #
 #***********************************************#
@@ -2184,6 +2186,8 @@ def getDevicePoses(session, deviceTypes, deviceCount, absTime):
     """
     outDevicePoses = PoseStatef()
     result = libovr.ovr_GetDevicePoses(session, byref(deviceTypes), deviceCount, absTime, byref(outDevicePoses))
+    if result == Error_LostTracking:
+        return None
     _checkResult(result, "getDevicePoses")
     return outDevicePoses
 
