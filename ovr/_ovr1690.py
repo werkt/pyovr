@@ -765,6 +765,9 @@ Hmd_ES06 = 11
 Hmd_ES09 = 12
 Hmd_ES11 = 13
 Hmd_CV1 = 14
+Hmd_RiftS = 16
+Hmd_Quest = 19
+Hmd_Quest2 = 20
 
 
 # Translated from header file OVR_CAPI.h line 355
