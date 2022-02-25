@@ -2974,6 +2974,135 @@ def getRenderDesc(session, eyeType, fov):
     return result
 
 
+libovr.ovr_WaitToBeginFrame.restype = Result
+libovr.ovr_WaitToBeginFrame.argtypes = [Session, c_longlong]
+def waitToBeginFrame(session, frameIndex):
+    """
+    Waits until surfaces are available and it is time to begin rendering the frame.  Must be
+    called before ovr_BeginFrame, but not necessarily from the same thread.
+
+    \param[in] session Specifies an ovrSession previously returned by ovr_Create.
+
+    \param[in] frameIndex Specifies the targeted application frame index.
+
+    \return Returns an ovrResult for which OVR_SUCCESS(result) is false upon error and true
+            upon success. Return values include but aren't limited to:
+        - ovrSuccess: command completed successfully.
+        - ovrSuccess_NotVisible: rendering of a previous frame completed successfully but was not
+          displayed on the HMD, usually because another application currently has ownership of the
+          HMD. Applications receiving this result should stop rendering new content and call
+          ovr_GetSessionStatus to detect visibility.
+        - ovrError_DisplayLost: The session has become invalid (such as due to a device removal)
+          and the shared resources need to be released (ovr_DestroyTextureSwapChain), the session
+          needs to destroyed (ovr_Destroy) and recreated (ovr_Create), and new resources need to be
+          created (ovr_CreateTextureSwapChainXXX). The application's existing private graphics
+          resources do not need to be recreated unless the new ovr_Create call returns a different
+          GraphicsLuid.
+
+    \see ovr_BeginFrame, ovr_EndFrame, ovr_GetSessionStatus
+    """
+    result = libovr.ovr_WaitToBeginFrame(session, frameIndex)
+    _checkResult(result, "waitToBeginFrame")
+    return result
+
+
+libovr.ovr_BeginFrame.restype = Result
+libovr.ovr_BeginFrame.argtypes = [Session, c_longlong]
+def beginFrame(session, frameIndex):
+    """
+    Called from render thread before application begins rendering.  Must be called after
+    ovr_WaitToBeginFrame and before ovr_EndFrame, but not necessarily from the same threads.
+
+    \param[in] session Specifies an ovrSession previously returned by ovr_Create.
+
+    \param[in] frameIndex Specifies the targeted application frame index.  It must match what was
+           passed to ovr_WaitToBeginFrame.
+
+    \return Returns an ovrResult for which OVR_SUCCESS(result) is false upon error and true
+            upon success. Return values include but aren't limited to:
+        - ovrSuccess: command completed successfully.
+        - ovrError_DisplayLost: The session has become invalid (such as due to a device removal)
+          and the shared resources need to be released (ovr_DestroyTextureSwapChain), the session
+          needs to destroyed (ovr_Destroy) and recreated (ovr_Create), and new resources need to be
+          created (ovr_CreateTextureSwapChainXXX). The application's existing private graphics
+          resources do not need to be recreated unless the new ovr_Create call returns a different
+          GraphicsLuid.
+
+    \see ovr_WaitToBeginFrame, ovr_EndFrame
+    """
+    result = libovr.ovr_BeginFrame(session, frameIndex)
+    return result
+
+
+libovr.ovr_EndFrame.restype = Result
+libovr.ovr_EndFrame.argtypes = [Session, c_longlong, POINTER(ViewScaleDesc), POINTER(POINTER(LayerHeader)), c_uint]
+def endFrame(session, frameIndex, viewScaleDesc, layerPtrList):
+    """
+    Called from render thread after application has finished rendering.  Must be called after
+    ovr_BeginFrame, but not necessarily from the same thread.  Submits layers for distortion and
+    display, which will happen asynchronously.
+
+    \param[in] session Specifies an ovrSession previously returned by ovr_Create.
+
+    \param[in] frameIndex Specifies the targeted application frame index.  It must match what was
+           passed to ovr_BeginFrame.
+
+    \param[in] viewScaleDesc Provides additional information needed only if layerPtrList contains
+           an ovrLayerType_Quad. If NULL, a default version is used based on the current
+           configuration and a 1.0 world scale.
+
+    \param[in] layerPtrList Specifies a list of ovrLayer pointers, which can include NULL entries to
+           indicate that any previously shown layer at that index is to not be displayed.
+           Each layer header must be a part of a layer structure such as ovrLayerEyeFov or
+           ovrLayerQuad, with Header.Type identifying its type. A NULL layerPtrList entry in the
+           array indicates the absence of the given layer.
+
+    \param[in] layerCount Indicates the number of valid elements in layerPtrList. The maximum
+           supported layerCount is not currently specified, but may be specified in a future
+           version.
+
+    - Layers are drawn in the order they are specified in the array, regardless of the layer type.
+
+    - Layers are not remembered between successive calls to ovr_EndFrame. A layer must be
+      specified in every call to ovr_EndFrame or it won't be displayed.
+
+    - If a layerPtrList entry that was specified in a previous call to ovr_EndFrame is
+      passed as NULL or is of type ovrLayerType_Disabled, that layer is no longer displayed.
+
+    - A layerPtrList entry can be of any layer type and multiple entries of the same layer type
+      are allowed. No layerPtrList entry may be duplicated (i.e. the same pointer as an earlier
+      entry).
+
+    <b>Example code</b>
+        \code{.cpp}
+            ovrLayerEyeFov  layer0;
+            ovrLayerQuad    layer1;
+              ...
+            ovrLayerHeader* layers[2] = { &layer0.Header, &layer1.Header };
+            ovrResult result = ovr_EndFrame(session, frameIndex, nullptr, layers, 2);
+        \endcode
+
+    \return Returns an ovrResult for which OVR_SUCCESS(result) is false upon error and true
+            upon success. Return values include but aren't limited to:
+        - ovrSuccess: rendering completed successfully.
+        - ovrError_DisplayLost: The session has become invalid (such as due to a device removal)
+          and the shared resources need to be released (ovr_DestroyTextureSwapChain), the session
+          needs to destroyed (ovr_Destroy) and recreated (ovr_Create), and new resources need to be
+          created (ovr_CreateTextureSwapChainXXX). The application's existing private graphics
+          resources do not need to be recreated unless the new ovr_Create call returns a different
+          GraphicsLuid.
+        - ovrError_TextureSwapChainInvalid: The ovrTextureSwapChain is in an incomplete or
+          inconsistent state. Ensure ovr_CommitTextureSwapChain was called at least once first.
+
+    \see ovr_WaitToBeginFrame, ovr_BeginFrame, ovrViewScaleDesc, ovrLayerHeader
+    """
+    layerCount = len(layerPtrList)
+    layerPtrList = (POINTER(LayerHeader) * layerCount)(*[ctypes.pointer(i) for i in layerPtrList])
+    result = libovr.ovr_EndFrame(session, frameIndex, byref(viewScaleDesc), byref(layerPtrList), layerCount)
+    _checkResult(result, "endFrame")
+    return result
+
+
 # Translated from header file OVR_CAPI.h line 2265
 libovr.ovr_SubmitFrame2.restype = Result
 libovr.ovr_SubmitFrame2.argtypes = [Session, c_longlong, POINTER(ViewScaleDesc), POINTER(POINTER(LayerHeader)), c_uint]
