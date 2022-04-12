@@ -95,6 +95,9 @@ def toOvrBool(arg):
     else:
         return ovrFalse
 
+def fromOvrBool(arg):
+    return arg != ovrFalse.value
+
 class OculusFunctionError(RuntimeError):
     """
     OculusFunctionError is a custom exception type for when OVR functions return a failure code.
